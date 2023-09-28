@@ -1,9 +1,4 @@
-//
-//  main.cpp
-//  calc
-//
-//  Created by Zach Wilcher on 9/28/23.
-//
+// main.cpp
 
 #include <iostream>
 
