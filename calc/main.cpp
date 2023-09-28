@@ -4,10 +4,7 @@
 #include <string>
 #include <list>
 #include <string_view>
-#include <sstream>
 #include <stack>
-
-#include <variant>
 
 
 std::vector<std::string> parseInput(std::string_view input) {
@@ -34,7 +31,6 @@ enum class CmdType {
     BinaryOperator,
     Operand
 };
-
 
 enum class BinaryOperatorType : int {
     Add,
@@ -66,19 +62,40 @@ Cmd createOperandCmd(int value) {
     return std::make_pair(CmdType::Operand, value);
 }
 
+int evalBinaryOperator(BinaryOperatorType type, int left, int right) {
+    int value;
+    switch (type) {
+        case BinaryOperatorType::Multiply:
+            value = left * right;
+            break;
+        case BinaryOperatorType::Divide:
+            value = left / right;
+            break;
+        case BinaryOperatorType::Add:
+            value = left + right;
+            break;
+        case BinaryOperatorType::Subtract:
+            value = left - right;
+            break;
+    }
+    
+    return value;
+}
+
 // A sequence of operand, operator, operand, operator, operand, ...
 struct Expression {
     
     std::list<Cmd> cmds;
+    using cmdsIter = std::list<Cmd>::iterator;
     
     void fold() {
+        auto findBinaryOperator = [&](BinaryOperatorType type) {
+            return std::find_if(cmds.begin(), cmds.end(), [type](const Cmd& cmd) {
+                return cmd.first == CmdType::BinaryOperator && cmd.second == static_cast<int>(type);
+            });
+        };
         
-        auto it = std::find_if(cmds.begin(), cmds.end(), [](const Cmd& cmd) {
-            return cmd.first == CmdType::BinaryOperator && cmd.second == static_cast<int>(BinaryOperatorType::Multiply);
-        });
-        
-        if(it != cmds.end()) {
-           // eval multiply
+        auto foldBinaryOperator = [&](cmdsIter it) {
             it--;
             int left = it->second;
             it = cmds.erase(it);
@@ -88,83 +105,26 @@ struct Expression {
             it = cmds.erase(it);
             it--;
             
-            int value = left * right;
-            
+            BinaryOperatorType type = static_cast<BinaryOperatorType>(it->second);
+            int value = evalBinaryOperator(type, left, right);
             *it = createOperandCmd(value);
-            
-            fold();
-            return;
+        };
+        
+        cmdsIter it;
+        
+        while((it = findBinaryOperator(BinaryOperatorType::Multiply)) != cmds.end()) {
+            foldBinaryOperator(it);
+        }
+        while((it = findBinaryOperator(BinaryOperatorType::Divide)) != cmds.end()) {
+            foldBinaryOperator(it);
+        }
+        while((it = findBinaryOperator(BinaryOperatorType::Add)) != cmds.end()) {
+            foldBinaryOperator(it);
+        }
+        while((it = findBinaryOperator(BinaryOperatorType::Subtract)) != cmds.end()) {
+            foldBinaryOperator(it);
         }
         
-        it = std::find_if(cmds.begin(), cmds.end(), [](const Cmd& cmd) {
-            return cmd.first == CmdType::BinaryOperator && cmd.second == static_cast<int>(BinaryOperatorType::Divide);
-        });
-        
-        if(it != cmds.end()) {
-            // eval divide
-            
-            it--;
-            int left = it->second;
-            it = cmds.erase(it);
-            
-            it++;
-            int right = it->second;
-            it = cmds.erase(it);
-            it--;
-            
-            int value = left / right;
-            
-            *it = createOperandCmd(value);
-            
-            fold();
-            return;
-        }
-        
-        it = std::find_if(cmds.begin(), cmds.end(), [](const Cmd& cmd) {
-            return cmd.first == CmdType::BinaryOperator && cmd.second == static_cast<int>(BinaryOperatorType::Add);
-        });
-        
-        if(it != cmds.end()) {
-            //eval add
-            it--;
-            int left = it->second;
-            it = cmds.erase(it);
-            
-            it++;
-            int right = it->second;
-            it = cmds.erase(it);
-            it--;
-            
-            int value = left + right;
-            
-            *it = createOperandCmd(value);
-            
-            fold();
-            return;
-        }
-        
-        it = std::find_if(cmds.begin(), cmds.end(), [](const Cmd& cmd) {
-            return cmd.first == CmdType::BinaryOperator && cmd.second == static_cast<int>(BinaryOperatorType::Subtract);
-        });
-        
-        if(it != cmds.end()) {
-            // eval subtract
-            it--;
-            int left = it->second;
-            it = cmds.erase(it);
-            
-            it++;
-            int right = it->second;
-            it = cmds.erase(it);
-            it--;
-            
-            int value = left - right;
-            
-            *it = createOperandCmd(value);
-            
-            fold();
-            return;
-        }
     }
     
     int eval() {
